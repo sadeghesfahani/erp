@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .models import TelegramUser
@@ -26,3 +27,19 @@ def save_telegram_user(request):
         return JsonResponse({"message": "User saved", "created": created})
 
     return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+@csrf_exempt
+def get_telegram_user(request, telegram_id):
+    """Retrieve a Telegram user's data from Django"""
+    print(telegram_id)
+    user = get_object_or_404(TelegramUser, telegram_id=telegram_id)
+
+    data = {
+        "telegram_id": user.telegram_id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    return JsonResponse(data)
