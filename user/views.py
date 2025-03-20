@@ -12,13 +12,15 @@ def save_telegram_user(request):
         username = data.get("username", "")
         first_name = data.get("first_name", "")
         last_name = data.get("last_name", "")
+        default_language = data.get("default_language", "")
+
 
         if not telegram_id:
             return JsonResponse({"error": "Missing telegram_id"}, status=400)
 
         user, created = TelegramUser.objects.update_or_create(
             telegram_id=telegram_id,
-            defaults={"username": username, "first_name": first_name, "last_name": last_name},
+            defaults={"username": username, "first_name": first_name, "last_name": last_name, "default_language": default_language},
         )
 
         return JsonResponse({"message": "User saved", "created": created})

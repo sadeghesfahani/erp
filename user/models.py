@@ -8,6 +8,7 @@ class TelegramUser(models.Model):
     first_name = models.CharField(max_length=255, blank=True, null=True)
     last_name = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    default_language = models.CharField(max_length=20, blank=True, null=True)
 
     # Optional link to Django user (for authenticated users)
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True)
