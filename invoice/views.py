@@ -2,9 +2,9 @@ import json
 import os
 
 import requests
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseNotAllowed
 
-TRYTON_URL = "http://192.168.178.31:8080"
+TRYTON_URL = "http://localhost:8080"
 
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
@@ -12,9 +12,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 def tryton_login():
     """Authenticate with Tryton and return session ID (caching for efficiency)."""
-    global session_id_cache
-    if session_id_cache:
-        return session_id_cache  # Use cached session
     tryton_password = os.getenv("TRYTOND_DB_PASSWORD")
     url = f"{TRYTON_URL}/common"
     payload = {
@@ -23,47 +20,93 @@ def tryton_login():
     }
     response = requests.post(url, json=payload)
 
-    if response.status_code == 200:
-        session_id_cache = response.json().get("result")
-        return session_id_cache
+
     return None  # Authentication failed
 # Create your views here.
 @csrf_exempt
-def create_invoice(request):
-    """Create an invoice in Tryton from Django API"""
-    if request.method == "POST":
+def invoice_list_create(request):
+    session_id = tryton_login()
+    if not session_id:
+        return JsonResponse({"error": "Authentication failed"}, status=403)
+
+    if request.method == "GET":
+        payload = {
+            "method": "search_read",
+            "params": [session_id, [], ["id", "party", "currency"]]
+        }
+        response = requests.post(f"{TRYTON_URL}/model/account.invoice", json=payload)
+        return JsonResponse(response.json().get("result", []), safe=False)
+
+    elif request.method == "POST":
         data = json.loads(request.body)
-
-        # Get invoice data from request
-        client_id = data.get("client_id")
-        items = data.get("items")  # List of items [{product_id, quantity, price}]
-        currency = data.get("currency", "EUR")  # Default to EUR
-
-
-        url = f"http://192.168.178.31:8080/model/account.invoice"
-
-        # Get Session ID
-        session_id = tryton_login()
-        if not session_id:
-            return JsonResponse({"error": "Authentication failed"}, status=403)
-
         payload = {
             "method": "create",
             "params": [session_id, [{
-                "party": client_id,
+                "party": data.get("client_id"),
+                "currency": data.get("currency", "EUR"),
                 "lines": [
                     {
                         "product": item["product_id"],
                         "quantity": item["quantity"],
-                        "unit_price": item["price"],
+                        "unit_price": item["price"]
                     }
-                    for item in items
-                ],
-                "currency": currency,
+                    for item in data.get("items", [])
+                ]
             }]]
         }
+        response = requests.post(f"{TRYTON_URL}/model/account.invoice", json=payload)
+        return JsonResponse(response.json(), status=201)
 
-        response = requests.post(url, json=payload)
-        return JsonResponse(response.json())
+    return HttpResponseNotAllowed(["GET", "POST"])
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
+@csrf_exempt
+def invoice_detail_update_delete(request, pk):
+    session_id = tryton_login()
+    if not session_id:
+        return JsonResponse({"error": "Authentication failed"}, status=403)
+
+    if request.method == "GET":
+        payload = {
+            "method": "read",
+            "params": [session_id, [pk], ["id", "party", "currency", "lines"]]
+        }
+        response = requests.post(f"{TRYTON_URL}/model/account.invoice", json=payload)
+        return JsonResponse(response.json().get("result", [{}])[0])
+
+    elif request.method == "DELETE":
+        payload = {
+            "method": "delete",
+            "params": [session_id, [pk]]
+        }
+        response = requests.post(f"{TRYTON_URL}/model/account.invoice", json=payload)
+        return JsonResponse({"message": "Deleted"})
+
+    return HttpResponseNotAllowed(["GET", "DELETE"])
+
+@csrf_exempt
+def invoice_item_list_create(request):
+    return JsonResponse({"error": "Invoice items should be created through invoice creation"}, status=400)
+
+@csrf_exempt
+def invoice_item_detail_update_delete(request, pk):
+    session_id = tryton_login()
+    if not session_id:
+        return JsonResponse({"error": "Authentication failed"}, status=403)
+
+    if request.method == "GET":
+        payload = {
+            "method": "read",
+            "params": [session_id, [pk], ["product", "quantity", "unit_price"]]
+        }
+        response = requests.post(f"{TRYTON_URL}/model/account.invoice.line", json=payload)
+        return JsonResponse(response.json().get("result", [{}])[0])
+
+    elif request.method == "DELETE":
+        payload = {
+            "method": "delete",
+            "params": [session_id, [pk]]
+        }
+        response = requests.post(f"{TRYTON_URL}/model/account.invoice.line", json=payload)
+        return JsonResponse({"message": "Deleted"})
+
+    return HttpResponseNotAllowed(["GET", "DELETE"])
