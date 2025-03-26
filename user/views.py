@@ -87,6 +87,7 @@ def add_friends(request, telegram_id):
 
     if not friend_telegram_id:
         return JsonResponse({"error": "Missing friend_telegram_id"}, status=400)
+    print("telegram_id is: ",telegram_id)
     telegram_user = get_object_or_404(TelegramUser, telegram_id=telegram_id)
     friend = Friend.objects.create(telegram_id=friend_telegram_id,first_name=friend_first_name,last_name=friend_last_name,username=friend_user_name,default_language=friend_default_language,parent=telegram_user )
     friend.save()
