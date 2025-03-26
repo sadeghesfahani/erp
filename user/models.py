@@ -27,7 +27,15 @@ class TelegramUser(models.Model):
     def __str__(self):
         return f"{self.first_name} (@{self.username}) - {self.telegram_id}"
 
-
+class Friend(models.Model):
+    """Stores Telegram user data independently from Aiogram"""
+    telegram_id = models.BigIntegerField()  # Unique Telegram user ID
+    username = models.CharField(max_length=255, blank=True, null=True)
+    first_name = models.CharField(max_length=255, blank=True, null=True)
+    last_name = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    default_language = models.CharField(max_length=20, blank=True, null=True)
+    parent = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, related_name="friends")
 
 def tryton_login():
     tryton_user = os.getenv("TRYTON_USER", "tryton_user")
@@ -106,4 +114,6 @@ def create_tryton_client(sender, instance, created, **kwargs):
             instance.save()
         except Exception as e:
             print(f"Failed to create party in Tryton: {e}")
+
+
 
