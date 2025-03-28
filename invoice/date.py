@@ -1,6 +1,4 @@
-import re
-from datetime import datetime, timedelta
-import dateparser
+
 import logging
 
 from dateutil import parser

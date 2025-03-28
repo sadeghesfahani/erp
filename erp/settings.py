@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'invoice.apps.InvoiceConfig',
     'user.apps.UserConfig',
-    'ai.apps.AiConfig'
+
 ]
 
 MIDDLEWARE = [
