@@ -20,12 +20,14 @@ class TelegramUser(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     client_id = models.CharField(max_length=255, blank=True, null=True)
     default_language = models.CharField(max_length=20, blank=True, null=True)
+    meta_data = models.JSONField(default=dict)
 
     # Optional link to Django user (for authenticated users)
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f"{self.first_name} (@{self.username}) - {self.telegram_id}"
+
 
 class Friend(models.Model):
     """Stores Telegram user data independently from Aiogram"""

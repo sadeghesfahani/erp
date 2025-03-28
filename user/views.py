@@ -1,7 +1,11 @@
+import json
+
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
-import json
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from .models import TelegramUser, Friend
 
 
@@ -17,12 +21,11 @@ def save_telegram_user(request):
         default_language = data.get("default_language", "")
         client_id = data.get("client_id", None)
 
-
         if not telegram_id:
             return JsonResponse({"error": "Missing telegram_id"}, status=400)
 
         user = TelegramUser.objects.filter(telegram_id=telegram_id).first()
-        print("User is: ",user)
+        print("User is: ", user)
         if user:
             user.username = username
             user.first_name = first_name
@@ -38,9 +41,8 @@ def save_telegram_user(request):
                 first_name=first_name,
                 last_name=last_name,
                 default_language=default_language,
-                client_id=client_id,).save()
+                client_id=client_id, ).save()
             return JsonResponse({"message": "User saved"})
-
 
     return JsonResponse({"error": "Invalid request"}, status=400)
 
@@ -79,17 +81,18 @@ def add_friends(request, telegram_id):
     #     "friend_default_language": str,
     #
     # }
-    friend_user_name= data.get("friend_username")
-    friend_first_name= data.get("friend_first_name")
-    friend_last_name= data.get("friend_last_name")
-    friend_default_language= data.get("friend_default_language")
-
+    friend_user_name = data.get("friend_username")
+    friend_first_name = data.get("friend_first_name")
+    friend_last_name = data.get("friend_last_name")
+    friend_default_language = data.get("friend_default_language")
 
     if not friend_telegram_id:
         return JsonResponse({"error": "Missing friend_telegram_id"}, status=400)
-    print("telegram_id is: ",telegram_id)
+    print("telegram_id is: ", telegram_id)
     telegram_user = get_object_or_404(TelegramUser, telegram_id=telegram_id)
-    friend = Friend.objects.create(telegram_id=friend_telegram_id,first_name=friend_first_name,last_name=friend_last_name,username=friend_user_name,default_language=friend_default_language,parent=telegram_user )
+    friend = Friend.objects.create(telegram_id=friend_telegram_id, first_name=friend_first_name,
+                                   last_name=friend_last_name, username=friend_user_name,
+                                   default_language=friend_default_language, parent=telegram_user)
     friend.save()
 
     return JsonResponse({"message": "Friend added"})
@@ -112,3 +115,38 @@ def get_friends(request, telegram_id):
         })
 
     return JsonResponse({"friends": serialized_friends})
+
+
+@csrf_exempt
+def get_user_meta_data(request, telegram_id):
+    user = TelegramUser.objects.filter(telegram_id=telegram_id).first()
+    if user:
+        return JsonResponse({"meta_data": user.meta_data})
+    else:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+
+class TelegramUserMetaDataView(APIView):
+    def patch(self, request, telegram_id):
+        try:
+            user, _ = TelegramUser.objects.get_or_create(telegram_id=telegram_id)
+            new_meta = request.data  # directly using the request body as the update payload
+
+            if not isinstance(new_meta, dict):
+                return Response({"error": "Invalid data format. Expected JSON object."}, status=400)
+
+            # Merge new data into existing metadata
+            user.meta_data.update(new_meta)
+            user.save()
+
+            return Response(user.meta_data, status=200)
+        except TelegramUser.DoesNotExist:
+            return Response({'error': 'User not found'}, status=404)
+
+    def get(self, request, telegram_id):
+        print("here")
+        user = TelegramUser.objects.filter(telegram_id=telegram_id).first()
+        if user:
+            return JsonResponse({"meta_data": user.meta_data})
+        else:
+            return JsonResponse({"error": "User not found"}, status=404)
